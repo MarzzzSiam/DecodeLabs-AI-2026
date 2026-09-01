@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marzon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0e14;
+    --panel:#0f151d;
+    --panel-2:#131b24;
+    --line:#1c2733;
+    --cyan:#4dd8e6;
+    --cyan-dim:#2a5a63;
+    --green:#7ee787;
+    --amber:#ff8a4c;
+    --text:#e6edf3;
+    --text-dim:#7d8590;
+    --mono:'JetBrains Mono', monospace;
+    --sans:'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(77,216,230,0.06), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(126,231,135,0.05), transparent 40%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  /* faint blueprint grid */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(77,216,230,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(77,216,230,0.035) 1px, transparent 1px);
+    background-size:34px 34px;
+    pointer-events:none;
+  }
+
+  .app{
+    width:100%;
+    max-width:760px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 40px 80px -20px rgba(0,0,0,0.6);
+  }
+  /* corner brackets - blueprint signature */
+  .app::before,.app::after,
+  .header::before,.header::after{
+    content:"";
+    position:absolute;
+    width:16px;height:16px;
+    border-color:var(--cyan-dim);
+    opacity:.7;
+    z-index:2;
+  }
+  .app::before{top:-1px;left:-1px;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan);}
+  .app::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan);}
+
+  .header{
+    padding:20px 24px 16px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.14em;
+    color:var(--cyan);
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:6px;height:6px;
+    background:var(--green);
+    border-radius:50%;
+    box-shadow:0 0 8px var(--green);
+    animation:pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse{50%{opacity:.35;}}
+  .title{
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:22px;
+    margin:6px 0 2px;
+    letter-spacing:.01em;
+  }
+  .subtitle{
+    font-size:12.5px;
+    color:var(--text-dim);
+    font-family:var(--mono);
+  }
+
+  /* IPO status strip — the signature element */
+  .ipo{
+    display:flex;
+    align-items:center;
+    gap:0;
+    margin-top:16px;
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.08em;
+    color:var(--text-dim);
+  }
+  .ipo-step{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:5px 10px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    transition:all .25s ease;
+  }
+  .ipo-step .dot{
+    width:6px;height:6px;
+    border-radius:50%;
+    background:var(--line);
+    transition:all .25s ease;
+  }
+  .ipo-step.active{
+    color:var(--cyan);
+    border-color:var(--cyan-dim);
+    background:rgba(77,216,230,0.06);
+  }
+  .ipo-step.active .dot{
+    background:var(--cyan);
+    box-shadow:0 0 8px var(--cyan);
+  }
+  .ipo-arrow{
+    color:var(--line);
+    padding:0 4px;
+    font-size:12px;
+  }
+
+  .chat{
+    height:420px;
+    overflow-y:auto;
+    padding:20px 24px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .chat::-webkit-scrollbar{width:8px;}
+  .chat::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+
+  .msg{
+    max-width:78%;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    animation:rise .28s ease;
+  }
+  @keyframes rise{
+    from{opacity:0; transform:translateY(6px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  .msg.user{align-self:flex-end; align-items:flex-end;}
+  .msg.bot{align-self:flex-start; align-items:flex-start;}
+
+  .bubble{
+    padding:10px 14px;
+    border-radius:10px;
+    font-size:14px;
+    line-height:1.5;
+  }
+  .msg.user .bubble{
+    background:rgba(126,231,135,0.1);
+    border:1px solid rgba(126,231,135,0.25);
+    color:var(--text);
+    border-bottom-right-radius:3px;
+  }
+  .msg.bot .bubble{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-bottom-left-radius:3px;
+  }
+  .meta{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--text-dim);
+    letter-spacing:.05em;
+    padding:0 2px;
+  }
+  .msg.user .meta{color:var(--green);}
+  .msg.bot .meta{color:var(--cyan);}
+
+  .typing{
+    display:flex;
+    gap:4px;
+    padding:12px 14px;
+  }
+  .typing span{
+    width:5px;height:5px;
+    border-radius:50%;
+    background:var(--cyan);
+    opacity:.4;
+    animation:blink 1s infinite;
+  }
+  .typing span:nth-child(2){animation-delay:.15s;}
+  .typing span:nth-child(3){animation-delay:.3s;}
+  @keyframes blink{0%,80%,100%{opacity:.2;} 40%{opacity:1;}}
+
+  .composer{
+    display:flex;
+    gap:10px;
+    padding:16px 20px;
+    border-top:1px solid var(--line);
+    background:var(--panel-2);
+  }
+  .prompt-label{
+    font-family:var(--mono);
+    color:var(--green);
+    font-size:14px;
+    align-self:center;
+    user-select:none;
+  }
+  input#userInput{
+    flex:1;
+    background:transparent;
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:11px 14px;
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:14px;
+    outline:none;
+    transition:border-color .2s;
+  }
+  input#userInput:focus{
+    border-color:var(--cyan);
+    box-shadow:0 0 0 3px rgba(77,216,230,0.1);
+  }
+  input#userInput::placeholder{color:var(--text-dim);}
+
+  input#userInput:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+    border-color:var(--line);
+  }
+
+  button#sendBtn{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.06em;
+    background:var(--cyan);
+    color:#04141a;
+    border:none;
+    border-radius:5px;
+    padding:0 18px;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity .15s, transform .1s;
+  }
+
+  button#sendBtn:disabled{
+    background:var(--line);
+    color:var(--text-dim);
+    cursor:not-allowed;
+    opacity:.6;
+  }
+  button#sendBtn:disabled:hover{
+    opacity:.6;
+  }
+
+  button#sendBtn:hover{opacity:.85;}
+  button#sendBtn:active{transform:scale(.97);}
+  button#sendBtn:focus-visible, input#userInput:focus-visible{
+    outline:2px solid var(--cyan);
+    outline-offset:2px;
+  }
+
+  .hint{
+    font-family:var(--mono);
+    font-size:10.5px;
+    color:var(--text-dim);
+    padding:10px 24px 18px;
+    border-top:1px dashed var(--line);
+  }
+  .hint b{color:var(--green); font-weight:600;}
+
+  @media (max-width:520px){
+    .ipo{flex-wrap:wrap; row-gap:6px;}
+    .chat{height:380px; padding:16px;}
+    .msg{max-width:88%;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div class="eyebrow">System Online — Marzon</div>
+    <div class="title">MARZON</div>
+    <div class="subtitle">RULE-BASED AI CHATBOT</div>
+
+    <div class="ipo" id="ipoStrip">
+      <div class="ipo-step" id="stepInput"><span class="dot"></span>INPUT</div>
+      <span class="ipo-arrow">→</span>
+      <div class="ipo-step" id="stepProcess"><span class="dot"></span>PROCESS</div>
+      <span class="ipo-arrow">→</span>
+      <div class="ipo-step" id="stepOutput"><span class="dot"></span>OUTPUT</div>
+    </div>
+  </div>
+
+  <div class="chat" id="chat"></div>
+
+  <div class="composer">
+    <span class="prompt-label">You:</span>
+    <input id="userInput" type="text" placeholder="Type 'hello' or 'help'…" autocomplete="off" />
+    <button id="sendBtn">SEND</button>
+  </div>
+
+  <div class="hint">Try: <b>hello</b>, <b>help</b>, <b>what is your name</b>, <b>thanks</b>, or <b>exit</b> to end the session.</div>
+</div>
+
+<script>
+  // ---- Knowledge base ----
+  const responses = {
+    'hello': 'Hi there! How can I help you today?',
+    'hi': 'Hello! Nice to see you.',
+    'how are you?': "I'm just a bunch of code, but I'm doing great!",
+    'what is your name?': 'I am Marzon, your friendly rule-based assistant.',
+    'who made you?': 'I was built by Marzan as part of the DecodeLabs AI Internship.',
+    'tell me a joke': "Why do programmers prefer dark mode? Because light attracts bugs.",
+    'help': 'I can chat about greetings, my name and how I am doing. Try "hello" or "thanks"!',
+    'thanks': "You're welcome!",
+    'thank you': "You're welcome!",
+  };
+  const DEFAULT_RESPONSE = "I do not understand. Type 'help' to see what I can do or 'exit' to quit.";
+  const EXIT_COMMANDS = new Set(['exit','bye','quit','goodbye']);
+
+  const chat = document.getElementById('chat');
+  const input = document.getElementById('userInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const stepInput = document.getElementById('stepInput');
+  const stepProcess = document.getElementById('stepProcess');
+  const stepOutput = document.getElementById('stepOutput');
+
+  let ended = false;
+
+  function timestamp(){
+    return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function addMessage(role, text){
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = (role === 'user' ? 'YOU' : 'MARZON') + ' · ' + timestamp();
+    wrap.appendChild(bubble);
+    wrap.appendChild(meta);
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+    return wrap;
+  }
+
+  function showTyping(){
+    const wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    wrap.id = 'typingIndicator';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble typing';
+    bubble.innerHTML = '<span></span><span></span><span></span>';
+    wrap.appendChild(bubble);
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function removeTyping(){
+    const el = document.getElementById('typingIndicator');
+    if(el) el.remove();
+  }
+
+  function lightStep(el, on){
+    el.classList.toggle('active', on);
+  }
+
+  function resetSteps(){
+    lightStep(stepInput, false);
+    lightStep(stepProcess, false);
+    lightStep(stepOutput, false);
+  }
+
+  function getResponse(cleanInput){
+    return Object.prototype.hasOwnProperty.call(responses, cleanInput)
+      ? responses[cleanInput]
+      : DEFAULT_RESPONSE;
+  }
+
+  async function handleSend(){
+    if(ended) return;
+    const raw = input.value;
+    const clean = raw.toLowerCase().trim();
+    if(clean === '') return;
+
+    addMessage('user', raw);
+    input.value = '';
+    input.focus();
+
+    // IPO sequence — lights up like the blueprint diagram
+    resetSteps();
+    lightStep(stepInput, true);
+    await sleep(280);
+
+    lightStep(stepProcess, true);
+    showTyping();
+    await sleep(420);
+    removeTyping();
+
+    lightStep(stepOutput, true);
+
+    if(EXIT_COMMANDS.has(clean)){
+      addMessage('bot', 'Goodbye! Have a great day. (session ended)');
+      ended = true;
+      input.disabled = true;
+      sendBtn.disabled = true;
+      input.placeholder = 'Session ended';
+      await sleep(300);
+      resetSteps();
+      return;
+    }
+
+    addMessage('bot', getResponse(clean));
+    await sleep(300);
+    resetSteps();
+  }
+
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  sendBtn.addEventListener('click', handleSend);
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') handleSend();
+  });
+
+  // Boot message
+  addMessage('bot', "Hello! I'm Marzon, a rule-based chatbot. Type 'exit' to quit.");
+  input.focus();
+</script>
+
+</body>
+</html>
