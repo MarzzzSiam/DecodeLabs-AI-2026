@@ -7,7 +7,7 @@ The idea is to build up in layers - start with plain logic, then work toward the
 ## Projects
 
 ### Project 1 - Marzon (Rule-Based AI Chatbot)
-`/1-Marzon-Rule-based-AI-Chatbot`
+`/Project-1-Marzon-Rule-based-AI-Chatbot`
 
 A chatbot with no learning involved; just a dictionary and a loop. Terminal version in Python, browser version in HTML/CSS/JS.
 
