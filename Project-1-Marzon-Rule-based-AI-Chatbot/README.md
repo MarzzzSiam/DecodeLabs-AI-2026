@@ -1,4 +1,4 @@
-# Marzon
+# Marzon | Rule-based AI Chatbot
 
 A rule-based chatbot. No machine learning, no APIs. Just a dictionary and a loop.
 
