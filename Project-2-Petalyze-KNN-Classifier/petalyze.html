@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Petalyze — Iris Species Classifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#faf6ee;
+    --paper-2:#f2ead9;
+    --card:#fffdf8;
+    --ink:#332c22;
+    --ink-dim:#8a8172;
+    --line:#e3d9c4;
+
+    --setosa:#8b7fd1;
+    --setosa-bg:#efedfa;
+    --versicolor:#3f93b8;
+    --versicolor-bg:#e7f3f7;
+    --virginica:#bd5f88;
+    --virginica-bg:#faeaf1;
+
+    --serif:'Playfair Display', serif;
+    --sans:'Source Sans 3', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 10% 10%, rgba(139,127,209,0.06), transparent 45%),
+      radial-gradient(circle at 90% 85%, rgba(189,95,136,0.06), transparent 45%),
+      var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    padding:32px 20px 60px;
+    position:relative;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(51,44,34,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(51,44,34,0.035) 1px, transparent 1px);
+    background-size:32px 32px;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  /* ---- floating blurred flower blooms (painterly, not line-art) ---- */
+  .floaty{
+    position:fixed;
+    opacity:.55;
+    pointer-events:none;
+    z-index:0;
+    animation:drift 10s ease-in-out infinite;
+    filter:blur(7px);
+  }
+  .floaty svg{ width:100%; height:100%; }
+  .f1{ top:5%; left:3%; width:220px; animation-delay:0s; }
+  .f2{ top:66%; left:1%; width:180px; animation-delay:1.4s; }
+  .f3{ top:10%; right:2%; width:260px; animation-delay:.7s; }
+  .f4{ top:64%; right:3%; width:200px; animation-delay:2.1s; }
+  @keyframes drift{
+    0%,100%{ transform: translateY(0px) rotate(0deg); }
+    50%{ transform: translateY(-18px) rotate(3deg); }
+  }
+  @media (max-width: 900px){ .floaty{ display:none; } }
+
+  .wrap{ max-width:920px; margin:0 auto; position:relative; z-index:1; }
+
+  /* ---- header ---- */
+  header{ text-align:center; margin-bottom:36px; }
+  .eyebrow{
+    font-family:var(--sans);
+    font-size:11.5px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+    margin-bottom:10px;
+  }
+  h1.logo{
+    font-family:var(--serif);
+    font-size:52px;
+    font-weight:700;
+    margin:0;
+    color:var(--ink);
+    letter-spacing:.01em;
+  }
+  h1.logo em{ font-style:italic; font-weight:600; color:var(--versicolor); }
+  .tagline{
+    font-size:14.5px;
+    color:var(--ink-dim);
+    margin-top:8px;
+    font-style:italic;
+  }
+
+  /* ---- card shell ---- */
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:0 24px 50px -25px rgba(51,44,34,0.18);
+    padding:28px 30px;
+    margin-bottom:24px;
+  }
+  .card h2{
+    font-family:var(--serif);
+    font-size:20px;
+    margin:0 0 4px;
+  }
+  .card .sub{
+    font-size:13px;
+    color:var(--ink-dim);
+    margin-bottom:20px;
+  }
+
+  /* ---- input grid ---- */
+  .input-grid{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:16px 20px;
+  }
+  @media (max-width:560px){ .input-grid{ grid-template-columns:1fr; } }
+
+  .field label{
+    display:block;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:6px;
+  }
+  .field .hint{
+    font-size:11px;
+    color:var(--ink-dim);
+    font-weight:400;
+  }
+  .field input[type=range]{
+    width:100%;
+    accent-color:var(--versicolor);
+    margin-top:6px;
+  }
+  .field-value{
+    font-family:var(--serif);
+    font-size:15px;
+    font-weight:600;
+    color:var(--versicolor);
+    float:right;
+  }
+
+  /* ---- result panel ---- */
+  .result{
+    display:none;
+    align-items:center;
+    gap:20px;
+    padding:22px 24px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    animation:rise .3s ease;
+  }
+  .result.show{ display:flex; }
+  @keyframes rise{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+
+  .result-icon{ font-size:38px; line-height:1; }
+  .result-text .label{
+    font-size:11.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+  }
+  .result-text .species{
+    font-family:var(--serif);
+    font-size:26px;
+    font-weight:700;
+    font-style:italic;
+  }
+  .result-text .confidence{
+    font-size:12.5px;
+    color:var(--ink-dim);
+    margin-top:2px;
+  }
+
+  /* species-specific coloring applied via JS */
+  .result.setosa{ background:var(--setosa-bg); border-color:var(--setosa); }
+  .result.setosa .species{ color:var(--setosa); }
+  .result.versicolor{ background:var(--versicolor-bg); border-color:var(--versicolor); }
+  .result.versicolor .species{ color:var(--versicolor); }
+  .result.virginica{ background:var(--virginica-bg); border-color:var(--virginica); }
+  .result.virginica .species{ color:var(--virginica); }
+
+  /* ---- scatter plot ---- */
+  .legend{ display:flex; gap:18px; margin-bottom:14px; flex-wrap:wrap; }
+  .legend-item{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-dim); }
+  .legend-dot{ width:9px; height:9px; border-radius:50%; }
+
+  svg#scatter{ width:100%; height:auto; display:block; }
+  .axis-label{ font-size:11px; fill:var(--ink-dim); font-family:var(--sans); }
+  .grid-line{ stroke:var(--line); stroke-width:1; }
+  .data-dot{ opacity:.55; }
+  .new-point{ stroke:var(--ink); stroke-width:2.5; }
+  .neighbor-ring{ fill:none; stroke-width:1.5; stroke-dasharray:3,3; opacity:.7; }
+
+  /* ---- model metrics ---- */
+  .metrics-top{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:14px;
+    margin-bottom:22px;
+  }
+  @media (max-width:560px){ .metrics-top{ grid-template-columns:1fr; } }
+  .metric-box{
+    background:var(--paper-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 16px;
+    text-align:center;
+  }
+  .metric-box .num{
+    font-family:var(--serif);
+    font-size:28px;
+    font-weight:700;
+    color:var(--versicolor);
+  }
+  .metric-box .lab{
+    font-size:11px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+    margin-top:2px;
+  }
+
+  .cm-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+    margin-top:6px;
+  }
+  .cm-table th, .cm-table td{
+    padding:9px 10px;
+    text-align:center;
+    border:1px solid var(--line);
+  }
+  .cm-table th{
+    font-weight:600;
+    color:var(--ink-dim);
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  .cm-table td.diag{
+    background:var(--versicolor-bg);
+    font-weight:700;
+    color:var(--versicolor);
+  }
+  .cm-caption{
+    font-size:11.5px;
+    color:var(--ink-dim);
+    margin-top:10px;
+    font-style:italic;
+  }
+
+  footer{
+    text-align:center;
+    font-size:12px;
+    color:var(--ink-dim);
+    margin-top:20px;
+  }
+  footer .credit{
+    margin-top:6px;
+    font-family:var(--serif);
+    font-style:italic;
+    font-size:13px;
+    color:var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<!-- floating decorative blooms: soft blurred gradient petals (not line-art) -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <radialGradient id="gradSetosa" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#b3a8ec"/>
+      <stop offset="55%" stop-color="#8b7fd1"/>
+      <stop offset="100%" stop-color="#6a5cb0"/>
+    </radialGradient>
+    <radialGradient id="gradVersicolor" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#7cc4e0"/>
+      <stop offset="55%" stop-color="#3f93b8"/>
+      <stop offset="100%" stop-color="#2c6e8c"/>
+    </radialGradient>
+    <radialGradient id="gradVirginica" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#e19bb9"/>
+      <stop offset="55%" stop-color="#bd5f88"/>
+      <stop offset="100%" stop-color="#954267"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+<div class="floaty f1"><svg viewBox="0 0 100 100">
+  <g>
+    <ellipse cx="50" cy="28" rx="16" ry="24" fill="url(#gradSetosa)"/>
+    <ellipse cx="50" cy="72" rx="16" ry="24" fill="url(#gradSetosa)"/>
+    <ellipse cx="26" cy="50" rx="24" ry="16" fill="url(#gradSetosa)"/>
+    <ellipse cx="74" cy="50" rx="24" ry="16" fill="url(#gradSetosa)"/>
+    <circle cx="50" cy="50" r="11" fill="#fce9a8"/>
+  </g>
+</svg></div>
+
+<div class="floaty f2"><svg viewBox="0 0 100 100">
+  <g>
+    <ellipse cx="50" cy="30" rx="14" ry="22" fill="url(#gradVirginica)"/>
+    <ellipse cx="50" cy="70" rx="14" ry="22" fill="url(#gradVirginica)"/>
+    <ellipse cx="28" cy="50" rx="22" ry="14" fill="url(#gradVirginica)"/>
+    <ellipse cx="72" cy="50" rx="22" ry="14" fill="url(#gradVirginica)"/>
+    <circle cx="50" cy="50" r="9" fill="#fce9a8"/>
+  </g>
+</svg></div>
+
+<div class="floaty f3"><svg viewBox="0 0 100 100">
+  <g>
+    <ellipse cx="50" cy="26" rx="17" ry="26" fill="url(#gradVersicolor)"/>
+    <ellipse cx="50" cy="74" rx="17" ry="26" fill="url(#gradVersicolor)"/>
+    <ellipse cx="24" cy="50" rx="26" ry="17" fill="url(#gradVersicolor)"/>
+    <ellipse cx="76" cy="50" rx="26" ry="17" fill="url(#gradVersicolor)"/>
+    <circle cx="50" cy="50" r="12" fill="#fce9a8"/>
+  </g>
+</svg></div>
+
+<div class="floaty f4"><svg viewBox="0 0 100 100">
+  <g>
+    <ellipse cx="50" cy="32" rx="13" ry="20" fill="url(#gradSetosa)"/>
+    <ellipse cx="50" cy="68" rx="13" ry="20" fill="url(#gradSetosa)"/>
+    <ellipse cx="30" cy="50" rx="20" ry="13" fill="url(#gradSetosa)"/>
+    <ellipse cx="70" cy="50" rx="20" ry="13" fill="url(#gradSetosa)"/>
+    <circle cx="50" cy="50" r="8" fill="#fce9a8"/>
+  </g>
+</svg></div>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">DecodeLabs AI Internship · Project 2</div>
+    <h1 class="logo">Petal<em>yze</em></h1>
+    <div class="tagline">A K-Nearest Neighbors classifier for the Iris dataset</div>
+  </header>
+
+  <!-- Input card -->
+  <div class="card">
+    <h2>Measure a Flower</h2>
+    <div class="sub">Drag each slider to describe the flower, then classify it.</div>
+
+    <div class="input-grid">
+      <div class="field">
+        <label>Sepal Length (cm) <span class="field-value" id="val-sl">5.8</span></label>
+        <input type="range" id="sl" min="4.0" max="8.0" step="0.1" value="5.8">
+      </div>
+      <div class="field">
+        <label>Sepal Width (cm) <span class="field-value" id="val-sw">3.0</span></label>
+        <input type="range" id="sw" min="1.8" max="4.6" step="0.1" value="3.0">
+      </div>
+      <div class="field">
+        <label>Petal Length (cm) <span class="field-value" id="val-pl">4.0</span></label>
+        <input type="range" id="pl" min="0.8" max="7.2" step="0.1" value="4.0">
+      </div>
+      <div class="field">
+        <label>Petal Width (cm) <span class="field-value" id="val-pw">1.2</span></label>
+        <input type="range" id="pw" min="0.1" max="2.6" step="0.1" value="1.2">
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Result card -->
+  <div class="card" id="resultCard">
+    <h2>Prediction</h2>
+    <div class="sub">Based on its <span id="kUsed">5</span> nearest neighbors in the dataset.</div>
+    <div class="result" id="resultBox">
+      <div class="result-icon" id="resultIcon">🌸</div>
+      <div class="result-text">
+        <div class="label">Predicted Species</div>
+        <div class="species" id="resultSpecies">Setosa</div>
+        <div class="confidence" id="resultConfidence">5 / 5 nearest neighbors agree</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model metrics card -->
+  <div class="card">
+    <h2>Model Performance</h2>
+    <div class="sub">Trained on 120 flowers, tested on 30 held-out flowers (k = 5).</div>
+
+    <div class="metrics-top">
+      <div class="metric-box"><div class="num">93.3%</div><div class="lab">Accuracy</div></div>
+      <div class="metric-box"><div class="num">0.93</div><div class="lab">Weighted F1</div></div>
+      <div class="metric-box"><div class="num">150</div><div class="lab">Total Samples</div></div>
+    </div>
+
+    <table class="cm-table">
+      <tr>
+        <th>Actual \ Predicted</th><th>Setosa</th><th>Versicolor</th><th>Virginica</th>
+      </tr>
+      <tr>
+        <th>Setosa</th><td class="diag">10</td><td>0</td><td>0</td>
+      </tr>
+      <tr>
+        <th>Versicolor</th><td>0</td><td class="diag">10</td><td>0</td>
+      </tr>
+      <tr>
+        <th>Virginica</th><td>0</td><td>2</td><td class="diag">8</td>
+      </tr>
+    </table>
+    <div class="cm-caption">Setosa is perfectly separated. The model's only confusion: 2 Virginica flowers were mistaken for Versicolor — expected, since those two species overlap slightly in petal measurements.</div>
+  </div>
+
+  <!-- Scatter plot card -->
+  <div class="card">
+    <h2>Where It Lands</h2>
+    <div class="sub">Petal Length vs. Petal Width — the two most separating features.</div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:#8b7fd1"></span>Setosa</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#3f93b8"></span>Versicolor</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#bd5f88"></span>Virginica</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#332c22"></span>Your Flower</div>
+    </div>
+    <svg id="scatter" viewBox="0 0 600 420"></svg>
+  </div>
+
+  <footer>
+    Petalyze · trained on Fisher's Iris dataset (150 samples, 3 species) · k-NN, k=5
+    <div class="credit">Built by Marzan &amp; Siam</div>
+  </footer>
+</div>
+
+<script>
+/* ---------------- Dataset: real Fisher Iris data ---------------- */
+/* [sepal_length, sepal_width, petal_length, petal_width, species(0=Setosa,1=Versicolor,2=Virginica)] */
+const IRIS = [[5.1,3.5,1.4,0.2,0],[4.9,3.0,1.4,0.2,0],[4.7,3.2,1.3,0.2,0],[4.6,3.1,1.5,0.2,0],[5.0,3.6,1.4,0.2,0],[5.4,3.9,1.7,0.4,0],[4.6,3.4,1.4,0.3,0],[5.0,3.4,1.5,0.2,0],[4.4,2.9,1.4,0.2,0],[4.9,3.1,1.5,0.1,0],[5.4,3.7,1.5,0.2,0],[4.8,3.4,1.6,0.2,0],[4.8,3.0,1.4,0.1,0],[4.3,3.0,1.1,0.1,0],[5.8,4.0,1.2,0.2,0],[5.7,4.4,1.5,0.4,0],[5.4,3.9,1.3,0.4,0],[5.1,3.5,1.4,0.3,0],[5.7,3.8,1.7,0.3,0],[5.1,3.8,1.5,0.3,0],[5.4,3.4,1.7,0.2,0],[5.1,3.7,1.5,0.4,0],[4.6,3.6,1.0,0.2,0],[5.1,3.3,1.7,0.5,0],[4.8,3.4,1.9,0.2,0],[5.0,3.0,1.6,0.2,0],[5.0,3.4,1.6,0.4,0],[5.2,3.5,1.5,0.2,0],[5.2,3.4,1.4,0.2,0],[4.7,3.2,1.6,0.2,0],[4.8,3.1,1.6,0.2,0],[5.4,3.4,1.5,0.4,0],[5.2,4.1,1.5,0.1,0],[5.5,4.2,1.4,0.2,0],[4.9,3.1,1.5,0.2,0],[5.0,3.2,1.2,0.2,0],[5.5,3.5,1.3,0.2,0],[4.9,3.6,1.4,0.1,0],[4.4,3.0,1.3,0.2,0],[5.1,3.4,1.5,0.2,0],[5.0,3.5,1.3,0.3,0],[4.5,2.3,1.3,0.3,0],[4.4,3.2,1.3,0.2,0],[5.0,3.5,1.6,0.6,0],[5.1,3.8,1.9,0.4,0],[4.8,3.0,1.4,0.3,0],[5.1,3.8,1.6,0.2,0],[4.6,3.2,1.4,0.2,0],[5.3,3.7,1.5,0.2,0],[5.0,3.3,1.4,0.2,0],[7.0,3.2,4.7,1.4,1],[6.4,3.2,4.5,1.5,1],[6.9,3.1,4.9,1.5,1],[5.5,2.3,4.0,1.3,1],[6.5,2.8,4.6,1.5,1],[5.7,2.8,4.5,1.3,1],[6.3,3.3,4.7,1.6,1],[4.9,2.4,3.3,1.0,1],[6.6,2.9,4.6,1.3,1],[5.2,2.7,3.9,1.4,1],[5.0,2.0,3.5,1.0,1],[5.9,3.0,4.2,1.5,1],[6.0,2.2,4.0,1.0,1],[6.1,2.9,4.7,1.4,1],[5.6,2.9,3.6,1.3,1],[6.7,3.1,4.4,1.4,1],[5.6,3.0,4.5,1.5,1],[5.8,2.7,4.1,1.0,1],[6.2,2.2,4.5,1.5,1],[5.6,2.5,3.9,1.1,1],[5.9,3.2,4.8,1.8,1],[6.1,2.8,4.0,1.3,1],[6.3,2.5,4.9,1.5,1],[6.1,2.8,4.7,1.2,1],[6.4,2.9,4.3,1.3,1],[6.6,3.0,4.4,1.4,1],[6.8,2.8,4.8,1.4,1],[6.7,3.0,5.0,1.7,1],[6.0,2.9,4.5,1.5,1],[5.7,2.6,3.5,1.0,1],[5.5,2.4,3.8,1.1,1],[5.5,2.4,3.7,1.0,1],[5.8,2.7,3.9,1.2,1],[6.0,2.7,5.1,1.6,1],[5.4,3.0,4.5,1.5,1],[6.0,3.4,4.5,1.6,1],[6.7,3.1,4.7,1.5,1],[6.3,2.3,4.4,1.3,1],[5.6,3.0,4.1,1.3,1],[5.5,2.5,4.0,1.3,1],[5.5,2.6,4.4,1.2,1],[6.1,3.0,4.6,1.4,1],[5.8,2.6,4.0,1.2,1],[5.0,2.3,3.3,1.0,1],[5.6,2.7,4.2,1.3,1],[5.7,3.0,4.2,1.2,1],[5.7,2.9,4.2,1.3,1],[6.2,2.9,4.3,1.3,1],[5.1,2.5,3.0,1.1,1],[5.7,2.8,4.1,1.3,1],[6.3,3.3,6.0,2.5,2],[5.8,2.7,5.1,1.9,2],[7.1,3.0,5.9,2.1,2],[6.3,2.9,5.6,1.8,2],[6.5,3.0,5.8,2.2,2],[7.6,3.0,6.6,2.1,2],[4.9,2.5,4.5,1.7,2],[7.3,2.9,6.3,1.8,2],[6.7,2.5,5.8,1.8,2],[7.2,3.6,6.1,2.5,2],[6.5,3.2,5.1,2.0,2],[6.4,2.7,5.3,1.9,2],[6.8,3.0,5.5,2.1,2],[5.7,2.5,5.0,2.0,2],[5.8,2.8,5.1,2.4,2],[6.4,3.2,5.3,2.3,2],[6.5,3.0,5.5,1.8,2],[7.7,3.8,6.7,2.2,2],[7.7,2.6,6.9,2.3,2],[6.0,2.2,5.0,1.5,2],[6.9,3.2,5.7,2.3,2],[5.6,2.8,4.9,2.0,2],[7.7,2.8,6.7,2.0,2],[6.3,2.7,4.9,1.8,2],[6.7,3.3,5.7,2.1,2],[7.2,3.2,6.0,1.8,2],[6.2,2.8,4.8,1.8,2],[6.1,3.0,4.9,1.8,2],[6.4,2.8,5.6,2.1,2],[7.2,3.0,5.8,1.6,2],[7.4,2.8,6.1,1.9,2],[7.9,3.8,6.4,2.0,2],[6.4,2.8,5.6,2.2,2],[6.3,2.8,5.1,1.5,2],[6.1,2.6,5.6,1.4,2],[7.7,3.0,6.1,2.3,2],[6.3,3.4,5.6,2.4,2],[6.4,3.1,5.5,1.8,2],[6.0,3.0,4.8,1.8,2],[6.9,3.1,5.4,2.1,2],[6.7,3.1,5.6,2.4,2],[6.9,3.1,5.1,2.3,2],[5.8,2.7,5.1,1.9,2],[6.8,3.2,5.9,2.3,2],[6.7,3.3,5.7,2.5,2],[6.7,3.0,5.2,2.3,2],[6.3,2.5,5.0,1.9,2],[6.5,3.0,5.2,2.0,2],[6.2,3.4,5.4,2.3,2],[5.9,3.0,5.1,1.8,2]];
+
+const SPECIES = ['setosa','versicolor','virginica'];
+const SPECIES_LABEL = ['Setosa','Versicolor','Virginica'];
+const COLORS = { setosa:'#8b7fd1', versicolor:'#3f93b8', virginica:'#bd5f88' };
+const ICONS = { setosa:'🌷', versicolor:'🌸', virginica:'🌺' };
+const K = 5;
+
+/* ---------------- Feature scaling (z-score, like StandardScaler) ---------------- */
+function computeStats(data){
+  const stats = [];
+  for(let i=0;i<4;i++){
+    const vals = data.map(r=>r[i]);
+    const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+    const variance = vals.reduce((a,b)=>a+(b-mean)**2,0)/vals.length;
+    stats.push({mean, std: Math.sqrt(variance)});
+  }
+  return stats;
+}
+const STATS = computeStats(IRIS);
+
+function scale(point){
+  return point.map((v,i)=> (v - STATS[i].mean) / STATS[i].std );
+}
+
+/* ---------------- KNN ---------------- */
+function classify(newPoint, k=K){
+  const scaledNew = scale(newPoint);
+  const scaledData = IRIS.map(r => ({ scaled: scale(r.slice(0,4)), species: r[4], raw: r }));
+
+  const withDist = scaledData.map(d => {
+    const dist = Math.sqrt(scaledNew.reduce((sum, v, i) => sum + (v - d.scaled[i])**2, 0));
+    return { dist, species: d.species, raw: d.raw };
+  });
+
+  withDist.sort((a,b) => a.dist - b.dist);
+  const neighbors = withDist.slice(0, k);
+
+  const votes = [0,0,0];
+  neighbors.forEach(n => votes[n.species]++);
+  const winner = votes.indexOf(Math.max(...votes));
+
+  return {
+    speciesIndex: winner,
+    species: SPECIES[winner],
+    label: SPECIES_LABEL[winner],
+    agreement: votes[winner],
+    k,
+    neighbors
+  };
+}
+
+/* ---------------- UI wiring ---------------- */
+const sliders = { sl: document.getElementById('sl'), sw: document.getElementById('sw'), pl: document.getElementById('pl'), pw: document.getElementById('pw') };
+const valueLabels = { sl: document.getElementById('val-sl'), sw: document.getElementById('val-sw'), pl: document.getElementById('val-pl'), pw: document.getElementById('val-pw') };
+
+function currentPoint(){
+  return [
+    parseFloat(sliders.sl.value),
+    parseFloat(sliders.sw.value),
+    parseFloat(sliders.pl.value),
+    parseFloat(sliders.pw.value),
+  ];
+}
+
+function updateAll(){
+  const point = currentPoint();
+  const result = classify(point);
+  showResult(result);
+  drawScatter(point, result);
+}
+
+Object.keys(sliders).forEach(key => {
+  sliders[key].addEventListener('input', () => {
+    valueLabels[key].textContent = parseFloat(sliders[key].value).toFixed(1);
+    updateAll(); // real-time — no button needed
+  });
+});
+
+function showResult(result){
+  const box = document.getElementById('resultBox');
+  box.className = 'result show ' + result.species;
+  document.getElementById('resultIcon').textContent = ICONS[result.species];
+  document.getElementById('resultSpecies').textContent = result.label;
+  document.getElementById('resultConfidence').textContent = `${result.agreement} / ${result.k} nearest neighbors agree`;
+  document.getElementById('kUsed').textContent = result.k;
+}
+
+/* ---------------- Scatter plot (Petal Length vs Petal Width) ---------------- */
+function drawScatter(newPoint, result){
+  const svg = document.getElementById('scatter');
+  svg.innerHTML = '';
+  const W = 600, H = 420, pad = 46;
+
+  const plVals = IRIS.map(r=>r[2]), pwVals = IRIS.map(r=>r[3]);
+  const plMin = 0.5, plMax = 7.2, pwMin = 0, pwMax = 2.7;
+
+  const xScale = v => pad + ( (v - plMin) / (plMax - plMin) ) * (W - pad*2);
+  const yScale = v => H - pad - ( (v - pwMin) / (pwMax - pwMin) ) * (H - pad*2);
+
+  const ns = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs){
+    const e = document.createElementNS(ns, tag);
+    for(const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // grid lines
+  for(let i=0;i<=6;i++){
+    const x = pad + i*(W-pad*2)/6;
+    svg.appendChild(el('line', {x1:x, y1:pad, x2:x, y2:H-pad, class:'grid-line'}));
+  }
+  for(let i=0;i<=5;i++){
+    const y = pad + i*(H-pad*2)/5;
+    svg.appendChild(el('line', {x1:pad, y1:y, x2:W-pad, y2:y, class:'grid-line'}));
+  }
+
+  // axis labels
+  const xlab = el('text', {x:W/2, y:H-10, class:'axis-label', 'text-anchor':'middle'});
+  xlab.textContent = 'Petal Length (cm)';
+  svg.appendChild(xlab);
+
+  const ylab = el('text', {x:16, y:H/2, class:'axis-label', 'text-anchor':'middle', transform:`rotate(-90 16 ${H/2})`});
+  ylab.textContent = 'Petal Width (cm)';
+  svg.appendChild(ylab);
+
+  // data points
+  IRIS.forEach(r => {
+    const cx = xScale(r[2]), cy = yScale(r[3]);
+    svg.appendChild(el('circle', {cx, cy, r:5, fill:COLORS[SPECIES[r[4]]], class:'data-dot'}));
+  });
+
+  // highlight neighbor rings
+  result.neighbors.forEach(n => {
+    const cx = xScale(n.raw[2]), cy = yScale(n.raw[3]);
+    svg.appendChild(el('circle', {cx, cy, r:9, class:'neighbor-ring', stroke:COLORS[SPECIES[n.species]]}));
+  });
+
+  // new point
+  const nx = xScale(newPoint[2]), ny = yScale(newPoint[3]);
+  svg.appendChild(el('circle', {cx:nx, cy:ny, r:8, fill:COLORS[result.species], class:'new-point'}));
+}
+
+// run once on load so the page starts with a live prediction, not an empty state
+updateAll();
+</script>
+
+</body>
+</html>
